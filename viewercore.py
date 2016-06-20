@@ -17,27 +17,35 @@ class viewerCore:
     # get undistorted image directly from camera
     def getFrame(self):
         if self.source == None:
-            print 'need to switch source first!'
+            # print 'need to switch source first!'
             return
         try:
             ret, frame = self.source.read()
             if ret == False:
                 raise Exception()
         except:
-            print 'frame is NOT read correctly from capture'
+            # print 'frame is NOT read correctly from capture'
             return
-
         return frame
 
     # getBoard()->8x8 board of 0 (white), 1 (black),None (vacant)
     # get board from parser, should return None in case of bad frame
     def getBoard(self):
-        game_img = self.getFrame()
+        frame = self.getFrame()
+        if self.gray == None:
+            # print 'need to calibrate camera first!'
+            return
+        undis_g = ci.undistort(self.gray, frame)
+        if undis_g is None:
+            # print "cannot match corners in game board image!"
+            return
+        scale = self.scale
+        game_img = cv2.resize(undis_g, (0, 0), fx=scale, fy=scale)
         if game_img == None:
-            print 'error occurred when reading frame'
+            # print 'error occurred when reading frame'
             return
 
-        print "inner corners", ci.getInnerCorners(game_img)  #
+        # print "inner corners", ci.getInnerCorners(game_img)  #
 
         edges_img = cv2.Canny(game_img, 100, 200)
         result_matrix = np.empty([8, 8])
@@ -46,23 +54,23 @@ class viewerCore:
         square_color = -1
         if self.first == 1:
             square_color = 1
-            print "first is brown"
+            # print "first is brown"
         else:
             square_color = 0
-            print "first is white"
+            # print "first is white"
         none_corners = []  # debug
         corners = self.corners
         # loop over Chess board squares and mark in matrix the squares' statuses (occupied or not)
         for i in range(8):
             for j in range(8):
-                # print k, k+1, k+9, k+10
+                # # print k, k+1, k+9, k+10
                 tl = corners[k][0]
                 tr = corners[k + 1][0]
                 bl = corners[k + 9][0]
                 br = corners[k + 10][0]
-                # print tl, tr, bl, br
+                # # print tl, tr, bl, br
                 if pcm.isSquareEmpty(tl, br, tr, bl, edges_img):
-                    result_matrix[i][j] = 0
+                    result_matrix[i][j] = None
                     square_color = 1 - square_color
                     k += 1
                     continue
@@ -71,17 +79,22 @@ class viewerCore:
                 if result != 1 and result != 2:
                     result = pcm.getPositionStatusByHalfDom(tl, br, tr, bl, game_img, square_color)
                     none_corners.append(corners[k])
-                    print "new result", result
-                result_matrix[i][j] = result
+                    # print "new result", result
+                if result is None:
+                    return None
+                if result == 0:
+                    result_matrix[i][j] = None
+                else:
+                    result_matrix[i][j] = 2-result
                 square_color = 1 - square_color
                 k += 1
-                print "########################################\n"
+                # print "########################################\n"
             square_color = 1 - square_color
             k += 1
-        print result_matrix
+        # print result_matrix
         ci.drawCorners(game_img, none_corners)
         ci.show(game_img)
-        return None
+        return result_matrix
 
     # switchSource(int)->bool
     # switches the source to camera by number. Returns whether the connection was succesfull
@@ -89,10 +102,10 @@ class viewerCore:
         try:
             self.source = cv2.VideoCapture(ind)
             ret = self.source.read()[0]
-            if not ret:
+            if ret == False:
                 raise Exception()
         except:
-            print 'frame is NOT read correctly from capture'
+            # print 'frame is NOT read correctly from capture'
             return False
         return True
 
@@ -101,8 +114,8 @@ class viewerCore:
     # true if succeeded, if fail, return error message
     def calibrate(self, empty, initial):
 
-        board_img = cv2.imread(empty)
-        initial_img = cv2.imread(initial)
+        board_img = empty
+        initial_img = initial
         gray = self.gray = cv2.cvtColor(board_img, cv2.COLOR_BGR2GRAY)
 
         undis_b = ci.undistort(gray, board_img)
@@ -126,13 +139,13 @@ class viewerCore:
 
         # set 2 opposite colors of board squares
         pcm.BROWN_RGB, pcm.WHITE_RGB, self.first = pcm.setRGBRanges(corners, board_img)
-        print "BROWN_RGB", pcm.BROWN_RGB
-        print "WHITE_RGB", pcm.WHITE_RGB
+        # print "BROWN_RGB", pcm.BROWN_RGB
+        # print "WHITE_RGB", pcm.WHITE_RGB
 
         # set 2 opposite colors of board pieces
         pcm.FIRST_PIECE_RGB, pcm.SECOND_PIECE_RGB = pcm.initialPiecesRGB(corners, initial_img)
-        print "FIRST_PIECE_RGB", pcm.FIRST_PIECE_RGB
-        print "SECOND_PIECE_RGB", pcm.SECOND_PIECE_RGB
+        # print "FIRST_PIECE_RGB", pcm.FIRST_PIECE_RGB
+        # print "SECOND_PIECE_RGB", pcm.SECOND_PIECE_RGB
 
         return True, 'Done!'
 

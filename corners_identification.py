@@ -19,7 +19,7 @@ def undistort(img,orig):
     calib = cv2.calibrateCamera([objp],[corners],img.shape[::-1],None,None)
     ret, mtx, dist, rvecs, tvecs = calib
     h, w = img.shape[:2]
-    cameramatx, roi = cv2.getOptimalNewCameraMatrix(mtx,dist,(w,h),1,(w,h))
+    cameramatx, roi = cv2.getOptimalNewCameraMatrix(mtx,dist,(w,h),1.0,(w,h))
     ret = cv2.undistort(orig,mtx,dist,None,cameramatx)
     #x,y,w,h = roi
     #ret = ret[y:y+h, x:x+w]

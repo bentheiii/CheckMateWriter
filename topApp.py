@@ -115,11 +115,18 @@ class topApp(Tkinter.Tk):
         self.seekcam()
     def loopState(self):
         self.stateUpdate()
-        self.after(1000/ self.statefps, self.loopState)
+        self.after(int(1000/ self.statefps), self.loopState)
     def stateUpdate(self):
         if self.stage >=2:
-            self.logic.mutate(self.viewer.getBoard(),self.promotionval)
-            self.boardState.set(self.logic.getState())
+            board = self.viewer.getBoard()
+            if board is None:
+                self.setMessage("bad frame")
+                return
+            mut = self.logic.mutate(board,self.promotionval)
+            if mut is not None:
+                self.setMessage(mut, True)
+            else:
+                self.boardState.set(self.logic.getState())
     def loopCam(self):
         self.camUpdate()
         self.after(1000 / self.camfps, self.loopCam)

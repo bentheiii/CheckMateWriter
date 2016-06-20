@@ -94,8 +94,8 @@ def resolveBoardDirection(corners, initial_img):
                 count_empty = count_empty +1      
         k += 9
 
-    ci.drawCorners(edges_img, none_corners)
-    ci.show(edges_img)
+    #ci.drawCorners(edges_img, none_corners)
+    #ci.show(edges_img)
     print "count empty from both side of board", count_empty
     if count_empty > 2:
         return 1
@@ -184,8 +184,8 @@ def initialPiecesRGB(corners, initial_img):
     # print "list 1 ", centers_pixels_list1, "min1 " , min1, "max1 " , max1 , "avg1 ", avg1
     # print "list 2 ", centers_pixels_list2, "min2 " , min2, "max2 " , max2 , "avg2 ", avg2
 
-    ci.drawCorners(initial_img, centers_points) # for debug
-    ci.show(initial_img) # for debug
+    #ci.drawCorners(initial_img, centers_points) # for debug
+    #ci.show(initial_img) # for debug
 
     # if min1 < min2 
     if comparePixels(min1, min2) == 1:
@@ -261,8 +261,9 @@ def setRGBRanges(corners, img):
 ########################################3
 
 #
-def isSquareEmpty(tl, br, tr, bl, edges_img):
-    points = getDiagonalsPoints(tl, br, tr, bl, 10, 100)
+def CannyConfidence(tl, br, tr, bl, h, k, edges_img):
+    points = getDiagonalsPoints(tl, br, tr, bl, h, k)
+    samplesize = (k-1)*4
     length = len(points)
     for i in range(0, length):
         p = points[i]
@@ -270,11 +271,29 @@ def isSquareEmpty(tl, br, tr, bl, edges_img):
         rgb = edges_img[p[1], p[0]]
         points[i] = rgb
     w_count = points.count(255)
-    if w_count > 20:
-        return 0
-    else:
-        return 1
+    return float(w_count)/samplesize
 
+def isSquareEmpty(tl, br, tr, bl, edges_img):
+    h = 10
+    hinc = 0
+    k = 100
+    kfactor = 2
+    threshO = 0.07
+    threshV = 0.060
+    maxsteps = 4
+    ostepfactor = 1
+    vstepfactor = 0
+    threshstep = (threshO-threshV)/(maxsteps*(ostepfactor+vstepfactor))
+    while True:
+        con = CannyConfidence(tl,br,tr,bl,h,k,edges_img)
+        if con > threshO:
+            return 0
+        if con < threshV:
+            return 1
+        threshO-=ostepfactor*threshstep
+        threshV+=vstepfactor*threshstep
+        k*=kfactor
+        h+=hinc
 #
 def getMiddlePoint(p1, p2):
     x1 = p1[0]
@@ -456,6 +475,14 @@ def getPositionStatusByHalfDom(tl, br, tr, bl, game_img, square_color):
         return 1
     if 2 in status_list and square_color == 1:
         return 2
-    return None
+    if status_list.count(1)>=2: #
+        return 1
+    if status_list.count(2)>=2: #
+        return 2
+    if 1 in status_list and 2 not in status_list: #
+        return 1
+    if 2 in status_list and 1 not in status_list: #
+        return 2
+    return 0
  
 #######################################################

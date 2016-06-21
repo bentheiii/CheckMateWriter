@@ -1,4 +1,5 @@
 from itertools import *
+import numpy
 import copy
 class boardChange:
     def __init__(self, kind, coordinates):
@@ -40,6 +41,14 @@ class board:
     def __setitem__(self, pos , value):
         row, col = pos
         self.data[row][col] = value
+    @staticmethod
+    def fromnp(np):
+        ret = board(len(np))
+        for i in xrange(len(np)):
+            for j in xrange(len(np)):
+                toplace = np[i][j]
+                ret[i,j] = None if numpy.isnan(toplace) else int(toplace)
+        return ret
 
 class _noMoveType:
     def __init__(self):

@@ -2,6 +2,7 @@ import Tkinter
 import Image
 import cv2
 import ImageTk
+from moveinterpreter import board
 from captureDiag import captureDiag
 
 #todo: hookup, rollback
@@ -76,15 +77,18 @@ class topApp(Tkinter.Tk):
         self.wait_window(d)
         return d.value
     def calibrate(self):
-        if self.stage <= 0:
+        if self.stage < 1:
             return
         empty = self.frameDiag('Click the button when the board is empty and in view','Empty Board')
         if empty is None:
             return
+        result, message = self.viewer.cabEmpty(empty)
+        if not result:
+            self.setMessage('Calibration Failed:\n{}'.format(message))
         setboard = self.frameDiag('Click the button when the board is in its starting position', 'starting board')
         if setboard is None:
             return
-        result,message = self.viewer.calibrate(empty,setboard)
+        result,message = self.viewer.cabSet(empty,message,setboard)
         if result:
             self.setMessage('Calibration sucessfull')
             self.stage = max(self.stage,2)
@@ -99,7 +103,7 @@ class topApp(Tkinter.Tk):
             self.camind+=1
             sucess = self.viewer.switchSource(self.camind)
             if sucess:
-                self.stage = 1
+                self.stage = max(self.stage,1)
                 return
             elif self.camind == 0:
                 raise Exception('could not connect to cam 0')
@@ -110,19 +114,19 @@ class topApp(Tkinter.Tk):
             return
         self.logic.startNewGame()
         self.setMessage('New game started!',True)
-        self.stage = 2
+        self.stage = 3
     def switchCam(self):
         self.seekcam()
     def loopState(self):
         self.stateUpdate()
         self.after(int(1000/ self.statefps), self.loopState)
     def stateUpdate(self):
-        if self.stage >=2:
-            board = self.viewer.getBoard()
-            if board is None:
+        if self.stage >=3:
+            npboard = self.viewer.getBoard()
+            if npboard is None:
                 self.setMessage("bad frame")
                 return
-            mut = self.logic.mutate(board,self.promotionval)
+            mut = self.logic.mutate(board.fromnp(npboard),self.promotionval)
             if mut is not None:
                 self.setMessage(mut, True)
             else:

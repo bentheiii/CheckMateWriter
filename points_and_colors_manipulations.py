@@ -2,15 +2,11 @@ import cv2
 import numpy as np
 from sklearn.cluster import KMeans
 
-import corners_identification as ci
-
 # define RGB colors ranges
-BROWN_RGB = [(50, 20, 0), (110, 70, 40)]
-WHITE_RGB = [(150, 140, 120), (200, 190, 185)]
 
 FIRST_PIECE_RGB = [(0,0,0), (60,60,60)]
 SECOND_PIECE_RGB = [(60,60,60), (180,180,180)]
-
+CELL_RANGE_MATRIX = None
 
 #
 def getMinPixelFromList(pixels_list):
@@ -66,7 +62,7 @@ def getFilteredList(pixels_list, epsilon):
 
 # get min and max pixel from pixels list with noisy pixels excluded
 def getMinMaxFilteredPixel(pixels_list):
-    pixels_list = getFilteredList(pixels_list, 3)
+    # pixels_list = getFilteredList(pixels_list, 3.0)
     min_pixel = getMinPixelFromList(pixels_list)
     max_pixel = getMaxPixelFromList(pixels_list)
     return min_pixel, max_pixel
@@ -96,7 +92,7 @@ def resolveBoardDirection(corners, initial_img):
 
     #ci.drawCorners(edges_img, none_corners)
     #ci.show(edges_img)
-    print "count empty from both side of board", count_empty
+    # print "count empty from both side of board", count_empty
     if count_empty > 2:
         return 1
     else:
@@ -114,7 +110,7 @@ def initialPiecesRGB(corners, initial_img):
     k = 0
     if resolveBoardDirection(corners, initial_img) == 1:
         # board is horizontal thus two top and bottom rows are placed with pieces at the begining
-    
+
         # sample from two first rows
         for i in [0,1]:
             for j in range(8):
@@ -149,7 +145,7 @@ def initialPiecesRGB(corners, initial_img):
         # sample from two right columns
         for i in range(8):
             for j in [0,1]:
-                h = j+k
+                h = j+i*9
                 tl = corners[h][0]
                 tr = corners[h+1][0]
                 bl = corners[h+9][0]
@@ -157,13 +153,12 @@ def initialPiecesRGB(corners, initial_img):
                 # print tl, tr, bl, br
                 centers_pixels_list1.append(getDominantColor(tl, br, tr, bl, initial_img))
                 centers_points.append(corners[h]) # debug
-            k += 9
 
         # sample from two left columns
         k = 0
         for i in range(8):
             for j in [6, 7]:
-                h = ((-1)*(6-j))+k
+                h = i*9 +j
                 tl = corners[h][0]
                 tr = corners[h+1][0]
                 bl = corners[h+9][0]
@@ -171,7 +166,6 @@ def initialPiecesRGB(corners, initial_img):
                 # print tl, tr, bl, br
                 centers_pixels_list2.append(getDominantColor(tl, br, tr, bl, initial_img))
                 centers_points.append(corners[h]) # debug
-            k += 9
 
     # perform noise filtering of unrelevant pixels
     min1, max1 = getMinMaxFilteredPixel(centers_pixels_list1)
@@ -187,7 +181,7 @@ def initialPiecesRGB(corners, initial_img):
     #ci.drawCorners(initial_img, centers_points) # for debug
     #ci.show(initial_img) # for debug
 
-    # if min1 < min2 
+    # if min1 < min2
     if comparePixels(min1, min2) == 1:
         # min1 = black , min2 = white
         return [(min1[0]-10, min1[1]-10, min1[2]-10), (max1[0]+10, max1[1]+10, max1[2]+10)], [(min2[0]-10, min2[1]-10, min2[2]-10), (max2[0]+10, max2[1]+10, max2[2]+10)]
@@ -231,7 +225,7 @@ def setRGBRanges(corners, img):
                     centers_pixels_list2.append(dom)
             flag_col = 1-flag_col
             k += 1
-        flag_row = 1-flag_row 
+        flag_row = 1-flag_row
         k += 1
 
     # perform noise filtering of unrelevant pixels
@@ -248,7 +242,7 @@ def setRGBRanges(corners, img):
     # ci.drawCorners1(img, centers_points) # for debug
     # ci.show(img) # for debug
 
-    # if min1 < min2 
+    # if min1 < min2
     if comparePixels(min1, min2) == 1:
         # min1 = brown , min2 = white and first square is white
         first = 0
@@ -273,6 +267,7 @@ def CannyConfidence(tl, br, tr, bl, h, k, edges_img):
     w_count = points.count(255)
     return float(w_count)/samplesize
 
+#
 def isSquareEmpty(tl, br, tr, bl, edges_img):
     h = 10
     hinc = 0
@@ -281,8 +276,8 @@ def isSquareEmpty(tl, br, tr, bl, edges_img):
     threshO = 0.07
     threshV = 0.060
     maxsteps = 4
-    ostepfactor = 1
-    vstepfactor = 0
+    ostepfactor = 2
+    vstepfactor = 1
     threshstep = (threshO-threshV)/(maxsteps*(ostepfactor+vstepfactor))
     while True:
         con = CannyConfidence(tl,br,tr,bl,h,k,edges_img)
@@ -343,7 +338,8 @@ def getDominantFromPoints(points, img):
         p = (int(p[0]), int(p[1]))
         #print "point - pixel", p, game_img[p[1], p[0]]
         pixels_list.append(img[p[1], p[0]])
-    pixels_list = getFilteredList(pixels_list, 2)
+    #pixels_list = getFilteredList(pixels_list, 2.0)
+    #print len(pixels_list)
     # cluster the pixel intensities
     clt = KMeans(n_clusters = 1)
     clt.fit(np.array(pixels_list))
@@ -351,15 +347,35 @@ def getDominantFromPoints(points, img):
     counts = np.bincount(clt.labels_)
     freq_label = np.argmax(counts)
     # bgr color
-    freq_color = clt.cluster_centers_[freq_label]
+    freq_color = clt.cluster_centers_[0]
     # print freq_color
     return (int(freq_color[2]), int(freq_color[1]), int(freq_color[0]))
 
+def get2DominantFromPoints(points,img):
+    pixels_list = []
+    for p in points:
+        p = (int(p[0]), int(p[1]))
+        #print "point - pixel", p, game_img[p[1], p[0]]
+        pixels_list.append(img[p[1], p[0]])
+    #pixels_list = getFilteredList(pixels_list, 2.0)
+    #print len(pixels_list)
+    # cluster the pixel intensities
+    clt = KMeans(n_clusters = 2)
+    clt.fit(np.array(pixels_list))
+    freq_color = map(lambda x: (int(x[2]), int(x[1]), int(x[0])),clt.cluster_centers_)
+    # print freq_color
+    return freq_color
+
 #
 def getDominantColor(tl, br, tr, bl, img):
-    points = getDiagonalsPoints(tl, br, tr, bl, 3, 50)
+    points = getDiagonalsPoints(tl, br, tr, bl, 3.0, 50)
     #ci.drawCorners1(game_img, points)
     return getDominantFromPoints(points, img)
+
+def get2DominantColor(tl, br, tr, bl, img):
+    points = getDiagonalsPoints(tl, br, tr, bl, 3.0, 50)
+    #ci.drawCorners1(game_img, points)
+    return get2DominantFromPoints(points, img)
 
 
 # side = 0, 1, 2, 3 to sign half-diagonal corner, 0=tl,1=tr,2=br,3=bl
@@ -377,7 +393,7 @@ def getHalfDiagonals(tl, br, tr, bl, side):
     }[side]
 
 
-# 
+#
 # each half dyagonal is devided to k parts - take parts edges as inner points
 def getHalfDiagPoints(half_diag, k):
     points_list = []
@@ -402,7 +418,7 @@ def getHalfDominants(tl, br, tr, bl, game_img):
         points_list = getHalfDiagPoints(half_diag, 25)
         # ci.drawCorners1(game_img, points_list)#
         dom = getDominantFromPoints(points_list, game_img)
-        print "side", side, "dom", dom #
+        # print "side", side, "dom", dom #
         dominants.append(dom)
     return dominants
 
@@ -418,12 +434,35 @@ def colorDiffFromRange(range_color, rgb_color):
     rng = np.array(avg_range)
     return np.linalg.norm(rgb - rng)
 
+def RangeforSquare(tl, br, tr, bl, img):
+    points = map(lambda x: img[int(x[1]),int(x[0])],getDiagonalsPoints(tl, br, tr, bl, 3, 50))
+    min = getMinPixelFromList(points)
+    max = getMaxPixelFromList(points)
+    return [min,max]
+
+def SetCellRanges(corners,img):
+    ret = [[None for _ in range(8)] for _ in range(8)]
+    for i in range(8):
+        for j in range(8):
+            k =i+j*9
+            tl = corners[k][0]
+            tr = corners[k+1][0]
+            bl = corners[k+9][0]
+            br = corners[k+10][0]
+            ret[i][j] = RangeforSquare(tl,br,tr,bl,img)
+    return ret
+
 # status : 0 for empty, 1 or 2 for occupied and None for unrecognized
 # square color, 0 for white, 1 for brown
-def getPositionStatusByDominantColor(dom_color, square_color):
+def getPositionStatusByDominantColor(dom_color, square_color, square_range, empty):
     # if canny has no white on , return by square
+    if empty:
+        if isColorInRange(FIRST_PIECE_RGB, dom_color):
+            return 1
+        else:
+            return 0
 
-    print "dom_color", dom_color
+    # print "dom_color", dom_color
     # square is white and piece is black
     if square_color == 0 and isColorInRange(FIRST_PIECE_RGB, dom_color):
         return 1
@@ -432,8 +471,10 @@ def getPositionStatusByDominantColor(dom_color, square_color):
     if square_color == 1 and isColorInRange(SECOND_PIECE_RGB, dom_color):
         return 2
 
+    if isColorInRange(square_range, dom_color):
+        return 0
+
     diff_list = []
-    diff_piece1, diff_piece2, diff_brown, diff_white = -1, -1, -1, -1
 
     diff_piece1 = colorDiffFromRange(FIRST_PIECE_RGB, dom_color)
     diff_list.append(diff_piece1)
@@ -441,34 +482,91 @@ def getPositionStatusByDominantColor(dom_color, square_color):
     diff_piece2 = colorDiffFromRange(SECOND_PIECE_RGB, dom_color)
     diff_list.append(diff_piece2)
 
-    diff_brown = colorDiffFromRange(BROWN_RGB, dom_color)
-    diff_list.append(diff_brown)
-
-    diff_white = colorDiffFromRange(WHITE_RGB, dom_color)
-    diff_list.append(diff_white)
+    #diff_back = colorDiffFromRange(square_range,dom_color)
+    #diff_list.append(diff_back)
+    diff_back = 10000
 
     min_diff = min(diff_list)
 
-    if (min_diff == diff_piece1 and isColorInRange(FIRST_PIECE_RGB, dom_color)) or (min_diff == diff_brown and square_color == 0):
+    if min_diff == diff_piece1:
         return 1
-    if (min_diff == diff_piece2 and isColorInRange(SECOND_PIECE_RGB, dom_color)) or (min_diff == diff_white and square_color == 1):
+    if min_diff == diff_piece2:
         return 2
-    if (min_diff == diff_brown and  square_color == 1) or (min_diff == diff_white and square_color == 0):
-        return 0
+    if min_diff == diff_back:
+        diffthresh = 0.5
+        if abs(diff_piece2 - diff_piece1)/max(diff_list) < diffthresh:
+            return square_color+1
+        else:
+            return 0
 
     print "None", dom_color
     print "min_diff", min_diff
-    print "diff_piece1", diff_piece1, "diff_piece2", diff_piece2, "diff_brown", diff_brown, "diff_white", diff_white
+    print "diff_piece1", diff_piece1, "diff_piece2", diff_piece2
     return None
- 
+
+def getPositionStatusBy2DominantColor(dom_color, square_color, square_range, empty):
+    # if canny has no white on , return by square
+    diffs = map(lambda x: colorDiffFromRange(square_range,x), dom_color)
+    if diffs[0] > diffs[1]:
+        colorF , colorB = dom_color
+    else:
+        colorB, colorF = dom_color
+    if empty:
+        if isColorInRange(FIRST_PIECE_RGB, colorF):
+            return 1
+        else:
+            return 0
+
+    # print "dom_color", dom_color
+    # square is white and piece is black
+    if square_color == 0 and isColorInRange(FIRST_PIECE_RGB, colorF):
+        return 1
+
+    # square is brown and piece is white
+    if square_color == 1 and isColorInRange(SECOND_PIECE_RGB, colorF):
+        return 2
+
+    if isColorInRange(square_range, colorB):
+        return 0
+
+    diff_list = []
+
+    diff_piece1 = colorDiffFromRange(FIRST_PIECE_RGB, colorF)
+    diff_list.append(diff_piece1)
+
+    diff_piece2 = colorDiffFromRange(SECOND_PIECE_RGB, colorF)
+    diff_list.append(diff_piece2)
+
+    #diff_back = colorDiffFromRange(square_range,dom_color)
+    #diff_list.append(diff_back)
+    diff_back = 10000
+
+    min_diff = min(diff_list)
+
+    if min_diff == diff_piece1:
+        return 1
+    if min_diff == diff_piece2:
+        return 2
+    if min_diff == diff_back:
+        diffthresh = 0.5
+        if abs(diff_piece2 - diff_piece1)/max(diff_list) < diffthresh:
+            return square_color+1
+        else:
+            return 0
+
+    print "None", dom_color
+    print "min_diff", min_diff
+    print "diff_piece1", diff_piece1, "diff_piece2", diff_piece2
+    return None
+
 
 # square color, 0 for white, 1 for brown
-def getPositionStatusByHalfDom(tl, br, tr, bl, game_img, square_color):
+def getPositionStatusByHalfDom(tl, br, tr, bl, game_img, square_color, square_range,empty):
     new_dom_list = getHalfDominants(tl, br, tr, bl, game_img)
     print "none half dom" , new_dom_list #
     status_list = []
     for dom in new_dom_list:
-        status = getPositionStatusByDominantColor(dom, square_color)
+        status = getPositionStatusByDominantColor(dom, square_color, square_range,empty)
         print "dom", dom, "res", status
         status_list.append(status)
     if 1 in status_list and square_color == 0:
@@ -484,5 +582,36 @@ def getPositionStatusByHalfDom(tl, br, tr, bl, game_img, square_color):
     if 2 in status_list and 1 not in status_list: #
         return 2
     return 0
- 
+
+#
+def getResultForSquare(corners, k, edges_img, game_img, square_color, i, j):
+    empty = 0
+    tl = corners[k][0]
+    tr = corners[k+1][0]
+    bl = corners[k+9][0]
+    br = corners[k+10][0]
+    if isSquareEmpty(tl, br, tr, bl, edges_img):
+        empty = 1
+    dom_color = get2DominantColor(tl, br, tr, bl, game_img)
+    result = getPositionStatusBy2DominantColor(dom_color, square_color, CELL_RANGE_MATRIX[i][j], empty)
+    if result is None:
+        result = getPositionStatusByHalfDom(tl, br, tr, bl, game_img, square_color, CELL_RANGE_MATRIX[i][j],empty)
+    if result == 0 or result is None:
+        return None
+    else:
+        return 2-result
+def getResultsForOneFrame(game_img, edges_img, corners, square_color):
+    result_matrix = np.empty([8, 8])
+    k = 0
+    # loop over Chess board squares and mark in matrix the squares' statuses (occupied or not)
+    for i in range(8):
+        for j in range(8):
+            result_matrix[j][7-i] = getResultForSquare(corners,k,edges_img,game_img,square_color,i,j)
+            square_color = 1-square_color
+            k += 1
+        square_color = 1-square_color
+        k += 1
+
+    return result_matrix
+
 #######################################################

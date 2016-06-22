@@ -47,7 +47,7 @@ def strTokens(state,size=8,transform=False):
                 ret.append(state.occupant(x,y,transform).token)
         ret.append("\n")
     return "".join(ret)
-sourceind = 5
+sourceind = 0
 
 interpreter = moveInterpreter()
 movevalidator = validator('U','l',8)

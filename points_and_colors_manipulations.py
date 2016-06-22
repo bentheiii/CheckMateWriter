@@ -72,23 +72,24 @@ def getMinMaxFilteredPixel(pixels_list):
 # 1 for horizontal board thus two top and bottom rows are placed with pieces at the begining
 # 0 for vertical board thus two right and left rows are placed with pieces at the begining
 def resolveBoardDirection(corners, initial_img):
-    edges_img = cv2.Canny(initial_img,100,200) #
+    edges_img = cv2.Canny(initial_img,70,110) #
     none_corners = [] #debug
     count_empty = 0
-    # sample from two middle rows
-    k = 27
     for i in [3, 4]:
         # sample first and last columns
         for j in [0, 7]:
-            h = k+j
+            h = i*9+j
             tl = corners[h][0]
             tr = corners[h+1][0]
             bl = corners[h+9][0]
             br = corners[h+10][0]
+            if False:
+                slice = edges_img[int(tl[1]):int(br[1]), int(tl[0]):int(br[0])]
+                import corners_identification as ci
+                ci.show(slice)
             none_corners.append(corners[h]) #
             if isSquareEmpty(tl, br, tr, bl, edges_img):
-                count_empty = count_empty +1      
-        k += 9
+                count_empty = count_empty +1
 
     #ci.drawCorners(edges_img, none_corners)
     #ci.show(edges_img)
@@ -112,17 +113,22 @@ def initialPiecesRGB(corners, initial_img):
         # board is horizontal thus two top and bottom rows are placed with pieces at the begining
 
         # sample from two first rows
+
         for i in [0,1]:
             for j in range(8):
+                k = i*9+j
                 tl = corners[k][0]
                 tr = corners[k+1][0]
                 bl = corners[k+9][0]
                 br = corners[k+10][0]
                 # print tl, tr, bl, br
-                centers_pixels_list1.append(getDominantColor(tl, br, tr, bl, initial_img))
+                if False:
+                    slice = initial_img[int(tl[1]):int(br[1]), int(tl[0]):int(br[0])]
+                    import corners_identification as ci
+                    ci.show(slice)
+                col = getDominantColor(tl, br, tr, bl, initial_img)
+                centers_pixels_list1.append(col)
                 centers_points.append(corners[k]) # debug
-                k += 1
-            k += 1
 
         # increase k by 8 + 1 steps in each row till 6th row = 9*4
         k += 36
@@ -130,6 +136,7 @@ def initialPiecesRGB(corners, initial_img):
         # sample from two last rows
         for i in [6,7]:
             for j in range(8):
+                k=i*9+j
                 tl = corners[k][0]
                 tr = corners[k+1][0]
                 bl = corners[k+9][0]
@@ -137,8 +144,6 @@ def initialPiecesRGB(corners, initial_img):
                 # print tl, tr, bl, br
                 centers_pixels_list2.append(getDominantColor(tl, br, tr, bl, initial_img))
                 centers_points.append(corners[k]) # debug
-                k += 1
-            k += 1
     else:
         # board is vertical thus two right and left rows are placed with pieces at the begining
 
@@ -269,14 +274,14 @@ def CannyConfidence(tl, br, tr, bl, h, k, edges_img):
 
 #
 def isSquareEmpty(tl, br, tr, bl, edges_img):
-    h = 10
+    h = 100
     hinc = 0
     k = 100
     kfactor = 2
     threshO = 0.07
     threshV = 0.060
     maxsteps = 4
-    ostepfactor = 2
+    ostepfactor = 10
     vstepfactor = 1
     threshstep = (threshO-threshV)/(maxsteps*(ostepfactor+vstepfactor))
     while True:
@@ -511,11 +516,13 @@ def getPositionStatusBy2DominantColor(dom_color, square_color, square_range, emp
         colorF , colorB = dom_color
     else:
         colorB, colorF = dom_color
+
     if empty:
         if isColorInRange(FIRST_PIECE_RGB, colorF):
             return 1
-        else:
-            return 0
+        #if square_color == 1 and isColorInRange(SECOND_PIECE_RGB, colorF):
+        #    return 2
+        return 0
 
     # print "dom_color", dom_color
     # square is white and piece is black
@@ -606,12 +613,29 @@ def getResultsForOneFrame(game_img, edges_img, corners, square_color):
     # loop over Chess board squares and mark in matrix the squares' statuses (occupied or not)
     for i in range(8):
         for j in range(8):
-            result_matrix[j][7-i] = getResultForSquare(corners,k,edges_img,game_img,square_color,i,j)
+            result_matrix[i][j] = getResultForSquare(corners,k,edges_img,game_img,square_color,i,j)
             square_color = 1-square_color
             k += 1
         square_color = 1-square_color
         k += 1
 
     return result_matrix
+def cmpColor(first,second):
+    return cmp(sum(first),sum(second))
+def cmpRanges(first,second):
+    ret = cmpColor(first[0],second[1])+cmpColor(first[1],second[1])
+    if ret == 0:
+        return 0
+    return 1 if ret > 0 else -1
+def firstSquareColor():
+    firstrange = CELL_RANGE_MATRIX[0][0]
+    contenderindices = [2*i+(1 if i%8 < 4 else 0) for i in xrange(32)]
+    contenders = [CELL_RANGE_MATRIX[i%8][i/8] for i in contenderindices]
+    victories = 0 #times first was higher than contender vs the opposite
+    for contender in contenders:
+        victories+=cmpRanges(firstrange,contender)
+    if victories > len(contenders)/2:
+        return 0 #white square
+    return 1 #brown square
 
 #######################################################

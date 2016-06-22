@@ -132,18 +132,15 @@ class move:
 
 class moveInterpreter:
     def __init__(self):
-        self.prevs = [None]
-    @property
-    def prev(self):
-        return self.prevs[-1]
-    @prev.setter
-    def prev(self, value):
-        self.prevs.append(copy.deepcopy(value))
+        self.prevs = []
+        self.prev = None
     def nextmove(self, currentBoard):
         prev = self.prev
         changes = Changes(prev, currentBoard)
         return move(changes[0],changes[1])
     def commit(self, currentBoard):
+        self.prevs.append(copy.deepcopy(self.prev))
         self.prev = currentBoard
     def rollBack(self):
+        self.prev = self.prevs[-1]
         self.prevs = self.prevs[:-1]

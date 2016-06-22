@@ -31,6 +31,7 @@ class boardState:
         self.transform = 0
         self.size = size
         self.pieces = None
+        self.prevTurn = None
     def occupant(self,x,y=None,transformcoor=False):
         if y is None:
             y = x[1]

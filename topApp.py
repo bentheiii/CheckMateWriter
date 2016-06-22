@@ -8,7 +8,7 @@ from captureDiag import captureDiag
 #todo: hookup, rollback
 
 class topApp(Tkinter.Tk):
-    def __init__(self, parent, logic, viewer, camfps = 30, statefps = 4):
+    def __init__(self, parent, logic, viewer, camfps = 30, statefps = 4, cabfolder = None):
         Tkinter.Tk.__init__(self,parent)
 
         #stages:
@@ -24,6 +24,8 @@ class topApp(Tkinter.Tk):
         self.logic = logic
         self.viewer = viewer
         self.camind = -1
+        self.cabfold = cabfolder
+        self.boardSign = '++++++++\n++++++++\n++++++++\n++++++++\n++++++++\n++++++++\n++++++++\n++++++++\n'
         self.title("CheckMate Writer")
 
         self.initialize()
@@ -43,10 +45,9 @@ class topApp(Tkinter.Tk):
         radioH.grid(column=2,row=0,columnspan=2)
 
         self.boardState = Tkinter.StringVar()
-        boardStateLabel= Tkinter.Label(self, textvariable = self.boardState)
+        boardStateLabel= Tkinter.Label(self, textvariable = self.boardState, font=("Courier", 12))
         boardStateLabel.grid(column=4,row=0,columnspan=2,rowspan=2)
 
-        self.boardState.set('++++++++\n++++++++\n++++++++\n++++++++\n++++++++\n++++++++\n++++++++\n++++++++\n')
         buttonheight = 4
         rollButton = Tkinter.Button(self, text='RollBack', height = buttonheight, command=self.rollback)
         rollButton.grid(column=4,row=2,columnspan=2)
@@ -72,6 +73,8 @@ class topApp(Tkinter.Tk):
     def rollback(self):
         if self.stage >= 3:
             self.logic.rollBack()
+            self.boardSign = self.logic.getState()
+
     def frameDiag(self,prompt,title):
         d = captureDiag(self,self.viewer,prompt,title)
         self.wait_window(d)
@@ -79,16 +82,23 @@ class topApp(Tkinter.Tk):
     def calibrate(self):
         if self.stage < 1:
             return
-        empty = self.frameDiag('Click the button when the board is empty and in view','Empty Board')
+        if self.cabfold is None:
+            empty = self.frameDiag('Click the button when the board is empty and in view','Empty Board')
+        else:
+            empty = cv2.imread(self.cabfold+r"/empty.jpg")
         if empty is None:
             return
         result, message = self.viewer.cabEmpty(empty)
         if not result:
             self.setMessage('Calibration Failed:\n{}'.format(message))
-        setboard = self.frameDiag('Click the button when the board is in its starting position', 'starting board')
+            return
+        if self.cabfold is None:
+            setboard = self.frameDiag('Click the button when the board is in its starting position', 'starting board')
+        else:
+            setboard = cv2.imread(self.cabfold+r"/set.jpg")
         if setboard is None:
             return
-        result,message = self.viewer.cabSet(empty,message,setboard)
+        result,message = self.viewer.cabSet(message,setboard)
         if result:
             self.setMessage('Calibration sucessfull')
             self.stage = max(self.stage,2)
@@ -120,17 +130,35 @@ class topApp(Tkinter.Tk):
     def loopState(self):
         self.stateUpdate()
         self.after(int(1000/ self.statefps), self.loopState)
+    @staticmethod
+    def strNpBoard(np,w=0.0,b=1.0):
+        ret = []
+        for i in xrange(len(np)):
+            for j in xrange(len(np)):
+                toplace = np[i][j]
+                if toplace == w:
+                    toplace = 'W'
+                elif toplace == b:
+                    toplace = 'B'
+                else:
+                    toplace = ':'
+                ret.append(toplace)
+            ret.append('\n')
+        return "".join(ret)
     def stateUpdate(self):
-        if self.stage >=3:
-            npboard = self.viewer.getBoard()
-            if npboard is None:
-                self.setMessage("bad frame")
-                return
-            mut = self.logic.mutate(board.fromnp(npboard),self.promotionval)
-            if mut is not None:
-                self.setMessage(mut, True)
-            else:
-                self.boardState.set(self.logic.getState())
+        if self.stage < 3:
+            return
+        npboard = self.viewer.getBoard(self.viewer.getFrame())
+        if npboard is None:
+            self.setMessage("bad frame")
+            return
+        mut = self.logic.mutate(board.fromnp(npboard),self.promotionval.get())
+        if mut is not None:
+            self.setMessage(mut, True)
+        else:
+            self.boardSign = self.logic.getState()
+        nextplayer = self.logic.nextPlayer()
+        self.boardState.set(nextplayer+" plays next\n"+self.boardSign+"========\n"+topApp.strNpBoard(npboard))
     def loopCam(self):
         self.camUpdate()
         self.after(1000 / self.camfps, self.loopCam)

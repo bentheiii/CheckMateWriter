@@ -7,7 +7,7 @@ class osStream:
         if platform.system()=='Windows':
             raise Exception("windows is not supported")
         else:
-            self.file = open(filepath,'w')
+            self.file = open(filepath,'wb',0)
     def write(self,text):
         self.file.write(text)
     def close(self):

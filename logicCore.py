@@ -1,16 +1,19 @@
-from moveinterpreter import moveInterpreter
+from moveinterpreter import moveInterpreter, moveTypes
 from validator import validator
 from gameRecorder import openRecorder
 import os.path
 
-def strTokens(state,size=8,transform=False):
+def strSigns(state, wToken, size=8, transform=False):
     ret = []
     for x in xrange(size):
         for y in xrange(size):
             if state.occupant(x,y,transform) is None:
                 ret.append(":")
             else:
-                ret.append(state.occupant(x,y,transform).token)
+                sign = str(state.occupant(x,y,transform).sign())
+                if wToken == state.occupant(x,y,transform).token:
+                    sign = str.lower(sign)
+                ret.append(sign)
         ret.append("\n")
     return "".join(ret)
 
@@ -21,8 +24,15 @@ class LogicCore:
         self.interpreter = None
         self.fileGenerator = filenameGenerator
         self.gameName = None
+    def nextPlayer(self):
+        ret =  self.validator.nextPlay()
+        if ret is None:
+            return 'Anyone'
+        if ret == self.validator.board.tokenW:
+            return 'White'
+        return 'Black'
     def getState(self):
-        return strTokens(self.validator.board)
+        return strSigns(self.validator.board,self.validator.board.tokenW,transform=True)
     def mutate(self,board,promotionvalue):
         move = self.interpreter.nextmove(board)
         valid, valValue = self.validator.isValid(move)
@@ -31,6 +41,8 @@ class LogicCore:
             self.validator.Commit(move,valValue,promotionvalue)
             self.recorder.record(self.validator.board,move,self.validator.nextPlay())
             return None
+        elif move.type == moveTypes.no:
+            return "No Move Detected"
         else:
             return "Illegal move!"
     def startNewGame(self):

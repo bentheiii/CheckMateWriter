@@ -11,16 +11,11 @@ def containerequals(item1,item2):
 
 class validator:
     def __init__(self,whitetoken,blacktoken,size=8):
-        self.boards = [boardState(whitetoken,blacktoken,size)]
+        self.boards = []
         #dictates which token should not play next, None means anyone can play next (in case of assignment)
-        self.prevTurn = None
 
-    @property
-    def board(self):
-        return self.boards[-1]
-    @board.setter
-    def board(self,value):
-        self.boards.append(copy.deepcopy(value))
+        self.board = boardState(whitetoken,blacktoken,size)
+
 
     def ValidateAppear(self,move):
         whites = filter(lambda x:x.kind==self.board.tokenW,move.appears)
@@ -133,8 +128,8 @@ class validator:
         self.board.insertPiece(knight(self.board.tokenW,11),(0,6))
         self.board.insertPiece(bishop(self.board.tokenW,12),(0,2))
         self.board.insertPiece(bishop(self.board.tokenW,13),(0,5))
-        self.board.insertPiece(queen(self.board.tokenW,14),(0,3))
-        self.board.insertPiece(king(self.board.tokenW,15),(0,4))
+        self.board.insertPiece(king(self.board.tokenW,14),(0,3))
+        self.board.insertPiece(queen(self.board.tokenW,15),(0,4))
 
         self.board.insertPiece(rook(self.board.tokenB,24),(7,0))
         self.board.insertPiece(rook(self.board.tokenB,25),(7,7))
@@ -142,8 +137,8 @@ class validator:
         self.board.insertPiece(knight(self.board.tokenB,27),(7,6))
         self.board.insertPiece(bishop(self.board.tokenB,28),(7,2))
         self.board.insertPiece(bishop(self.board.tokenB,29),(7,5))
-        self.board.insertPiece(queen(self.board.tokenB,30),(7,3))
-        self.board.insertPiece(king(self.board.tokenB,31),(7,4))
+        self.board.insertPiece(king(self.board.tokenB,30),(7,3))
+        self.board.insertPiece(queen(self.board.tokenB,31),(7,4))
 
         for i in xrange(8):
             self.board.insertPiece(pawn(self.board.tokenW,1,i),(1,i))
@@ -160,13 +155,13 @@ class validator:
         self.board.assign(r,r.location)
         self.advanceTurn(k.token)
     def hasTurn(self,playToken):
-        if self.prevTurn is None:
+        if self.board.prevTurn is None:
             return True
-        return self.prevTurn != playToken
+        return self.board.prevTurn != playToken
     def nextPlay(self):
-        if self.prevTurn is None:
+        if self.board.prevTurn is None:
             return None
-        if self.board.tokenB == self.prevTurn:
+        if self.board.tokenB == self.board.prevTurn:
             return self.board.tokenW
         else:
             return self.board.tokenB
@@ -204,8 +199,9 @@ class validator:
             return self.ValidateCastling(move)
         return False, None
     def advanceTurn(self,prevToken):
-        self.prevTurn = prevToken
+        self.board.prevTurn = prevToken
     def Commit(self,move,validationValue,promotionvalue = 'Q'):
+        self.boards.append(copy.deepcopy(self.board))
         if move.type == moveTypes.appear:
             self.commitAppear(validationValue)
         elif move.type == moveTypes.regular:
@@ -217,7 +213,7 @@ class validator:
             if validationValue[1] is True:
                 self.promote(mover,promotionvalue)
         elif move.type == moveTypes.eat or move.type == moveTypes.irregularEat:
-            eater, eaten = validationValue
+            eater, eaten, _ = validationValue
             self.board.assign(None,eaten.location)
             self.board.pieces.remove(eaten)
             self.board.assign(None,eater.location)
@@ -230,7 +226,8 @@ class validator:
             self.commitCastling(validationValue)
         self.board.advance()
     def rollBack(self):
-        self.boards = self.board[:-1]
+        self.board  =self.boards[-1]
+        self.boards = self.boards[:-1]
     def promote(self, propawn, promoteSign):
         proclass = queen if promoteSign=='Q' else knight
         self.board.pieces.remove(propawn)

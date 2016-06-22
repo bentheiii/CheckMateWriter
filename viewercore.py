@@ -39,20 +39,17 @@ class viewerCore:
             return
         scale = self.scale
         game_img = cv2.resize(undis_g, (0, 0), fx=scale, fy=scale)
-        if game_img == None:
+        if game_img is None:
             # print 'error occurred when reading frame'
             return
 
         # print "inner corners", ci.getInnerCorners(game_img)  #
 
-        edges_img = cv2.Canny(game_img, 70, 120)
+        edges_img = cv2.Canny(game_img, 70, 110)
         #ci.show(edges_img)
         # save square color, 0 for white, 1 for brown
         square_color = -1
-        if self.first == 1:
-            square_color = 1
-        else:
-            square_color = 0
+        square_color = self.first
         return pcm.getResultsForOneFrame(game_img, edges_img, self.corners, square_color)
 
 
@@ -113,7 +110,7 @@ class viewerCore:
         pcm.FIRST_PIECE_RGB, pcm.SECOND_PIECE_RGB = pcm.initialPiecesRGB(corners, initial_img)
         # print "FIRST_PIECE_RGB", pcm.FIRST_PIECE_RGB
         # print "SECOND_PIECE_RGB", pcm.SECOND_PIECE_RGB
-
+        self.first = pcm.firstSquareColor()
         return True, 'Done!'
 
     # close()->None

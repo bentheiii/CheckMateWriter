@@ -1,9 +1,11 @@
+
 import cv2
 
 import corners_identification as ci
 import points_and_colors_manipulations as pcm
 
 
+#handles image processing for TopApp
 class viewerCore:
     def __init__(self):
         self.source = None
@@ -66,7 +68,7 @@ class viewerCore:
             return False
         return True
 
-
+    #calibrate corners of image with empty board
     def cabEmpty(self,empty):
         board_img = empty
         gray = self.gray = cv2.cvtColor(board_img, cv2.COLOR_BGR2GRAY)
@@ -84,9 +86,7 @@ class viewerCore:
             return False, "cannot identify corners"
         corners = self.corners = ci.extrapolateOuterCorners(innercorners)
         return True, (corners, board_img, gray)
-    # calibrate(Image emptyBoard, Image pieceBoard)->(bool,str)
-    # recalibrate camera based on new empty board and color board, return
-    # true if succeeded, if fail, return error message
+    #calibrate colors of image with set board, must be called only after cabEmpty
     def cabSet(self, dat, initial):
         corners, board_img, gray = dat
         initial_img = initial

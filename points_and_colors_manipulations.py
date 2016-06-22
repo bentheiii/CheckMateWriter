@@ -1,14 +1,15 @@
+# define set of functions for manipulating points and colors
 import cv2
 import numpy as np
 from sklearn.cluster import KMeans
-
-# define RGB colors ranges
 
 FIRST_PIECE_RGB = [(0,0,0), (60,60,60)]
 SECOND_PIECE_RGB = [(60,60,60), (180,180,180)]
 CELL_RANGE_MATRIX = None
 
-#
+# get a list of pixels (list of (r,g,b) taples) and return the
+# "minimum pixel" defined as a pixel that composed of minimum on
+# R values, minimum on G values and minimum on B values
 def getMinPixelFromList(pixels_list):
     R = []
     G = []
@@ -19,7 +20,9 @@ def getMinPixelFromList(pixels_list):
         B.append(pixel[2])
     return (min(R), min(G), min(B))
 
-#
+# get a list of pixels (list of (r,g,b) taples) and return the
+# "maximum pixel" defined as a pixel that composed of maximum on
+# R values, maximum on G values and maximum on B values
 def getMaxPixelFromList(pixels_list):
     R = []
     G = []
@@ -30,7 +33,9 @@ def getMaxPixelFromList(pixels_list):
         B.append(pixel[2])
     return (max(R), max(G), max(B))
 
-#
+# get a list of pixels (list of (r,g,b) taples) and return the
+# "average pixel" defined as a pixel that composed of average on
+# R values, average on G values and average on B values
 def getAveragePixel(pixels_list):
     r, g, b = 0, 0, 0
     count = 0
@@ -41,7 +46,10 @@ def getAveragePixel(pixels_list):
         count += 1
     return ((r/count), (g/count), (b/count))
 
-# p1<p2 -> 1, p1>p2 -> 2, othewise -> 0
+# compare between two pixels p1 and p2 with the logic below:
+# if p1<p2 return 1, if p1>p2 return 2, othewise return 0
+# p1 < p2 if (p1's R value < p2's R value and p1's G value < p2's G value and
+# p1's B value < p2's B value), and vice versa with p1 > p2
 def comparePixels(p1, p2):
     if p1[0] < p2[0] and p1[1] < p2[1] and p1[2] < p2[2]:
         return 1
@@ -49,7 +57,9 @@ def comparePixels(p1, p2):
         return 2
     return 0
 
-# 
+# get a list of pixels (list of (r,g,b) taples) and return this list after
+# filtering it of outliers defined as values that are lower than
+# (1/epsilon)*average_pixel or higher than epsilon*average_pixel
 def getFilteredList(pixels_list, epsilon):
     avg = getAveragePixel(pixels_list)
     # print pixels_list, "avg", avg
@@ -60,20 +70,18 @@ def getFilteredList(pixels_list, epsilon):
     # print "after filtered", pixels_list
     return pixels_list
 
-# get min and max pixel from pixels list with noisy pixels excluded
+# get min and max pixel from pixels list after filtered
 def getMinMaxFilteredPixel(pixels_list):
     # pixels_list = getFilteredList(pixels_list, 3.0)
     min_pixel = getMinPixelFromList(pixels_list)
     max_pixel = getMaxPixelFromList(pixels_list)
     return min_pixel, max_pixel
 
-########################################################
-
-# 1 for horizontal board thus two top and bottom rows are placed with pieces at the begining
-# 0 for vertical board thus two right and left rows are placed with pieces at the begining
+# get an image of a board at the begining of the game, and resolve its direction :
+# return 1 for horizontal board thus two top and bottom rows are placed with pieces at the begining
+# return 0 for vertical board thus two right and left rows are placed with pieces at the begining
 def resolveBoardDirection(corners, initial_img):
     edges_img = cv2.Canny(initial_img,70,110) #
-    none_corners = [] #debug
     count_empty = 0
     for i in [3, 4]:
         # sample first and last columns
@@ -83,37 +91,26 @@ def resolveBoardDirection(corners, initial_img):
             tr = corners[h+1][0]
             bl = corners[h+9][0]
             br = corners[h+10][0]
-            if False:
-                slice = edges_img[int(tl[1]):int(br[1]), int(tl[0]):int(br[0])]
-                import corners_identification as ci
-                ci.show(slice)
-            none_corners.append(corners[h]) #
             if isSquareEmpty(tl, br, tr, bl, edges_img):
                 count_empty = count_empty +1
-
-    #ci.drawCorners(edges_img, none_corners)
-    #ci.show(edges_img)
-    # print "count empty from both side of board", count_empty
     if count_empty > 2:
         return 1
     else:
         return 0
 
-########################################################
-# return piceces' black color range and white color range
+# get an image of a board at the begining of the game, and
+# resolve the two pieces colors
+# return pieces' black color range and white color range
 def initialPiecesRGB(corners, initial_img):
-    # sample colors in squares' centers of two rows in each side of initial board, to get pieces' two colors
-
+    # sample colors in squares' centers of two rows in each
+    # side of the initial board, to get pieces' two colors
     centers_pixels_list1 = []
     centers_pixels_list2 = []
-    # points for debug only
-    centers_points = []
     k = 0
     if resolveBoardDirection(corners, initial_img) == 1:
         # board is horizontal thus two top and bottom rows are placed with pieces at the begining
 
         # sample from two first rows
-
         for i in [0,1]:
             for j in range(8):
                 k = i*9+j
@@ -121,18 +118,11 @@ def initialPiecesRGB(corners, initial_img):
                 tr = corners[k+1][0]
                 bl = corners[k+9][0]
                 br = corners[k+10][0]
-                # print tl, tr, bl, br
-                if False:
-                    slice = initial_img[int(tl[1]):int(br[1]), int(tl[0]):int(br[0])]
-                    import corners_identification as ci
-                    ci.show(slice)
                 col = getDominantColor(tl, br, tr, bl, initial_img)
                 centers_pixels_list1.append(col)
-                centers_points.append(corners[k]) # debug
 
         # increase k by 8 + 1 steps in each row till 6th row = 9*4
         k += 36
-
         # sample from two last rows
         for i in [6,7]:
             for j in range(8):
@@ -141,9 +131,8 @@ def initialPiecesRGB(corners, initial_img):
                 tr = corners[k+1][0]
                 bl = corners[k+9][0]
                 br = corners[k+10][0]
-                # print tl, tr, bl, br
-                centers_pixels_list2.append(getDominantColor(tl, br, tr, bl, initial_img))
-                centers_points.append(corners[k]) # debug
+                col = getDominantColor(tl, br, tr, bl, initial_img)
+                centers_pixels_list2.append(col)
     else:
         # board is vertical thus two right and left rows are placed with pieces at the begining
 
@@ -155,9 +144,8 @@ def initialPiecesRGB(corners, initial_img):
                 tr = corners[h+1][0]
                 bl = corners[h+9][0]
                 br = corners[h+10][0]
-                # print tl, tr, bl, br
-                centers_pixels_list1.append(getDominantColor(tl, br, tr, bl, initial_img))
-                centers_points.append(corners[h]) # debug
+                col = getDominantColor(tl, br, tr, bl, initial_img)
+                centers_pixels_list1.append(col)
 
         # sample from two left columns
         k = 0
@@ -168,23 +156,12 @@ def initialPiecesRGB(corners, initial_img):
                 tr = corners[h+1][0]
                 bl = corners[h+9][0]
                 br = corners[h+10][0]
-                # print tl, tr, bl, br
-                centers_pixels_list2.append(getDominantColor(tl, br, tr, bl, initial_img))
-                centers_points.append(corners[h]) # debug
+                col = getDominantColor(tl, br, tr, bl, initial_img)
+                centers_pixels_list2.append(col)
 
     # perform noise filtering of unrelevant pixels
     min1, max1 = getMinMaxFilteredPixel(centers_pixels_list1)
     min2, max2 = getMinMaxFilteredPixel(centers_pixels_list2)
-
-    avg1 = getAveragePixel(centers_pixels_list1)#debug
-    avg2 = getAveragePixel(centers_pixels_list2)#debug
-
-    #debug
-    # print "list 1 ", centers_pixels_list1, "min1 " , min1, "max1 " , max1 , "avg1 ", avg1
-    # print "list 2 ", centers_pixels_list2, "min2 " , min2, "max2 " , max2 , "avg2 ", avg2
-
-    #ci.drawCorners(initial_img, centers_points) # for debug
-    #ci.show(initial_img) # for debug
 
     # if min1 < min2
     if comparePixels(min1, min2) == 1:
@@ -195,71 +172,8 @@ def initialPiecesRGB(corners, initial_img):
         first = 1
         return [(min2[0]-10, min2[1]-10, min2[2]-10), (max2[0]+10, max2[1]+10, max2[2]+10)], [(min1[0]-10, min1[1]-10, min1[2]-10), (max1[0]+10, max1[1]+10, max1[2]+10)]
 
-
-################################################
-#
-def setRGBRanges(corners, img):
-
-    centers_pixels_list1 = []
-    centers_pixels_list2 = []
-
-    # points for debug only
-    centers_points = []
-    k = 0
-    flag_row = 1
-    # loop over Chess board slots and get max and min pixel values for brown and white slots
-    for i in range(8):
-        flag_col = 1
-        for j in range(8):
-            # print k, k+1, k+9, k+10
-            tl = corners[k][0]
-            tr = corners[k+1][0]
-            bl = corners[k+9][0]
-            br = corners[k+10][0]
-            # print tl, tr, bl, br
-            dom = getDominantColor(tl, br, tr, bl, img)
-            if flag_row:
-                if flag_col: # white
-                    centers_pixels_list2.append(dom)
-                else: # brown
-                    centers_pixels_list1.append(dom)
-            else:
-                if flag_col: # brown
-                    centers_pixels_list1.append(dom)
-                else: # white
-                    centers_pixels_list2.append(dom)
-            flag_col = 1-flag_col
-            k += 1
-        flag_row = 1-flag_row
-        k += 1
-
-    # perform noise filtering of unrelevant pixels
-    min1, max1 = getMinMaxFilteredPixel(centers_pixels_list1)
-    min2, max2 = getMinMaxFilteredPixel(centers_pixels_list2)
-
-    avg1 = getAveragePixel(centers_pixels_list1)#debug
-    avg2 = getAveragePixel(centers_pixels_list2)#debug
-
-    #debug
-    # print "list 1 ", centers_pixels_list1, "min1 " , min1, "max1 " , max1 , "avg1 ", avg1
-    # print "list 2 ", centers_pixels_list2, "min2 " , min2, "max2 " , max2 , "avg2 ", avg2
-
-    # ci.drawCorners1(img, centers_points) # for debug
-    # ci.show(img) # for debug
-
-    # if min1 < min2
-    if comparePixels(min1, min2) == 1:
-        # min1 = brown , min2 = white and first square is white
-        first = 0
-        return [(min1[0]-10, min1[1]-10, min1[2]-10), (max1[0]+10, max1[1]+10, max1[2]+10)], [(min2[0]-10, min2[1]-10, min2[2]-10), (max2[0]+10, max2[1]+10, max2[2]+10)], first
-    else:
-        # min1 = white, min2 = brown and first square is brown
-        first = 1
-        return [(min2[0]-10, min2[1]-10, min2[2]-10), (max2[0]+10, max2[1]+10, max2[2]+10)], [(min1[0]-10, min1[1]-10, min1[2]-10), (max1[0]+10, max1[1]+10, max1[2]+10)], first
-
-########################################3
-
-#
+# get ratio of white edge pixels to black edge pixels from
+# canny image for a cell
 def CannyConfidence(tl, br, tr, bl, h, k, edges_img):
     points = getDiagonalsPoints(tl, br, tr, bl, h, k)
     samplesize = (k-1)*4
@@ -272,7 +186,7 @@ def CannyConfidence(tl, br, tr, bl, h, k, edges_img):
     w_count = points.count(255)
     return float(w_count)/samplesize
 
-#
+# return whether a cell defined by 4 corners is empty
 def isSquareEmpty(tl, br, tr, bl, edges_img):
     h = 100
     hinc = 0
@@ -294,7 +208,8 @@ def isSquareEmpty(tl, br, tr, bl, edges_img):
         threshV+=vstepfactor*threshstep
         k*=kfactor
         h+=hinc
-#
+
+# get the middle point between points p1 and p2
 def getMiddlePoint(p1, p2):
     x1 = p1[0]
     y1 = p1[1]
@@ -302,13 +217,15 @@ def getMiddlePoint(p1, p2):
     y2 = p2[1]
     return np.array([(x1+x2)/2.0, (y1+y2)/2.0])
 
-#
+# return 4 diafonals of a cell defined of 4 corners
 def getDiagonalsByCorners(tl, br, tr, bl):
     yield (tl, br)
     yield (tr, bl)
     yield (getMiddlePoint(tl, tr), getMiddlePoint(bl, br))
     yield (getMiddlePoint(tl, bl), getMiddlePoint(tr, br))
 
+# calculate p_cross between p1 and p2 thus its diff from p1 is K and
+# its diff from p2 is L
 # K = p1----p_cross , L = p_cross----p2
 def getCrossPoint(p1, p2, K, L):
     x1 = p1[0]
@@ -318,8 +235,9 @@ def getCrossPoint(p1, p2, K, L):
     den = (L + K)*1.0
     return np.array([(x1*L + x2*K)/den, (y1*L + y2*K)/den])
 
-# dyagonal is devided to h parts, skip 1/h from each side
+# dyagonal is devided to h parts, skip 1/h from each side (to get points from the cell inside)
 # each dyagonal is devided to k parts - take parts edges as inner points
+# return a list of those points retrieved from the 4 cell's diagonals
 def getDiagonalsPoints(tl, br, tr, bl, h, k):
     points_list = []
     for (p1, p2) in getDiagonalsByCorners(tl, br, tr, bl):
@@ -336,15 +254,14 @@ def getDiagonalsPoints(tl, br, tr, bl, h, k):
             points_list.append(getCrossPoint(p1, p2, part, length-part))
     return points_list
 
-#
+# get a list of pixels (list of (r,g,b) taples) and return a dominant pixel
 def getDominantFromPoints(points, img):
     pixels_list = []
     for p in points:
         p = (int(p[0]), int(p[1]))
-        #print "point - pixel", p, game_img[p[1], p[0]]
         pixels_list.append(img[p[1], p[0]])
     #pixels_list = getFilteredList(pixels_list, 2.0)
-    #print len(pixels_list)
+
     # cluster the pixel intensities
     clt = KMeans(n_clusters = 1)
     clt.fit(np.array(pixels_list))
@@ -356,6 +273,7 @@ def getDominantFromPoints(points, img):
     # print freq_color
     return (int(freq_color[2]), int(freq_color[1]), int(freq_color[0]))
 
+# get a list of pixels (list of (r,g,b) taples) and return 2 dominant pixels
 def get2DominantFromPoints(points,img):
     pixels_list = []
     for p in points:
@@ -371,18 +289,19 @@ def get2DominantFromPoints(points,img):
     # print freq_color
     return freq_color
 
-#
+# return the dominant pixel of a cell
 def getDominantColor(tl, br, tr, bl, img):
     points = getDiagonalsPoints(tl, br, tr, bl, 3.0, 50)
     #ci.drawCorners1(game_img, points)
     return getDominantFromPoints(points, img)
 
+# return the 2 dominant pixels of a cell
 def get2DominantColor(tl, br, tr, bl, img):
     points = getDiagonalsPoints(tl, br, tr, bl, 3.0, 50)
     #ci.drawCorners1(game_img, points)
     return get2DominantFromPoints(points, img)
 
-
+# return 3 half diagonals from each corner of the cell
 # side = 0, 1, 2, 3 to sign half-diagonal corner, 0=tl,1=tr,2=br,3=bl
 def getHalfDiagonals(tl, br, tr, bl, side):
     center = getMiddlePoint(tl, br)
@@ -397,9 +316,8 @@ def getHalfDiagonals(tl, br, tr, bl, side):
         3: [(bl, center), (middle_bl_br, center), (middle_tl_bl, center)],
     }[side]
 
-
-#
 # each half dyagonal is devided to k parts - take parts edges as inner points
+# return a list of those points retrieved from the cell's half diagonals
 def getHalfDiagPoints(half_diag, k):
     points_list = []
     for (p1, p2) in half_diag:
@@ -415,15 +333,13 @@ def getHalfDiagPoints(half_diag, k):
             points_list.append(getCrossPoint(p1, p2, part, length-part))
     return points_list
 
-#
+# return the 4 dominant pixels of a cell
 def getHalfDominants(tl, br, tr, bl, game_img):
     dominants = []
     for side in [0, 1, 2, 3]:
         half_diag = getHalfDiagonals(tl, br, tr, bl, side)
         points_list = getHalfDiagPoints(half_diag, 25)
-        # ci.drawCorners1(game_img, points_list)#
         dom = getDominantFromPoints(points_list, game_img)
-        # print "side", side, "dom", dom #
         dominants.append(dom)
     return dominants
 
@@ -432,19 +348,21 @@ def getHalfDominants(tl, br, tr, bl, game_img):
 def isColorInRange(range_color, rgb_color):
     return all(start <= color <= end for color, start, end in zip(rgb_color, range_color[0], range_color[1]))
 
-#
+# return the diff of a color from range's average
 def colorDiffFromRange(range_color, rgb_color):
     rgb = np.array(rgb_color)
     avg_range = getAveragePixel(range_color)
     rng = np.array(avg_range)
     return np.linalg.norm(rgb - rng)
 
+# retrun a colors range for a square = cell defined by its 4 corners
 def RangeforSquare(tl, br, tr, bl, img):
     points = map(lambda x: img[int(x[1]),int(x[0])],getDiagonalsPoints(tl, br, tr, bl, 3, 50))
     min = getMinPixelFromList(points)
     max = getMaxPixelFromList(points)
     return [min,max]
 
+# retrun matrix of the cells ranges
 def SetCellRanges(corners,img):
     ret = [[None for _ in range(8)] for _ in range(8)]
     for i in range(8):
@@ -457,8 +375,10 @@ def SetCellRanges(corners,img):
             ret[i][j] = RangeforSquare(tl,br,tr,bl,img)
     return ret
 
-# status : 0 for empty, 1 or 2 for occupied and None for unrecognized
-# square color, 0 for white, 1 for brown
+# get dominant color of a square and the square color = 0 for white, 1 for brown and
+# the square colors range and whether this cell is recognized as empty by canny and
+# return status : 0 for empty, 1 for black piece, 2 for white piece and
+# None for unrecognized
 def getPositionStatusByDominantColor(dom_color, square_color, square_range, empty):
     # if canny has no white on , return by square
     if empty:
@@ -467,7 +387,6 @@ def getPositionStatusByDominantColor(dom_color, square_color, square_range, empt
         else:
             return 0
 
-    # print "dom_color", dom_color
     # square is white and piece is black
     if square_color == 0 and isColorInRange(FIRST_PIECE_RGB, dom_color):
         return 1
@@ -479,36 +398,20 @@ def getPositionStatusByDominantColor(dom_color, square_color, square_range, empt
     if isColorInRange(square_range, dom_color):
         return 0
 
-    diff_list = []
-
     diff_piece1 = colorDiffFromRange(FIRST_PIECE_RGB, dom_color)
-    diff_list.append(diff_piece1)
-
     diff_piece2 = colorDiffFromRange(SECOND_PIECE_RGB, dom_color)
-    diff_list.append(diff_piece2)
 
-    #diff_back = colorDiffFromRange(square_range,dom_color)
-    #diff_list.append(diff_back)
-    diff_back = 10000
-
-    min_diff = min(diff_list)
-
-    if min_diff == diff_piece1:
+    if diff_piece1 < diff_piece2:
         return 1
-    if min_diff == diff_piece2:
+    if diff_piece2 < diff_piece1:
         return 2
-    if min_diff == diff_back:
-        diffthresh = 0.5
-        if abs(diff_piece2 - diff_piece1)/max(diff_list) < diffthresh:
-            return square_color+1
-        else:
-            return 0
 
-    print "None", dom_color
-    print "min_diff", min_diff
-    print "diff_piece1", diff_piece1, "diff_piece2", diff_piece2
     return None
 
+# get list of 2 dominant colors of a square and the square color = 0 for white, 1 for brown and
+# the square colors range and whether this cell is recognized as empty by canny and
+# return status : 0 for empty, 1 for black piece, 2 for white piece and
+# None for unrecognized
 def getPositionStatusBy2DominantColor(dom_color, square_color, square_range, empty):
     # if canny has no white on , return by square
     diffs = map(lambda x: colorDiffFromRange(square_range,x), dom_color)
@@ -524,7 +427,6 @@ def getPositionStatusBy2DominantColor(dom_color, square_color, square_range, emp
         #    return 2
         return 0
 
-    # print "dom_color", dom_color
     # square is white and piece is black
     if square_color == 0 and isColorInRange(FIRST_PIECE_RGB, colorF):
         return 1
@@ -536,38 +438,21 @@ def getPositionStatusBy2DominantColor(dom_color, square_color, square_range, emp
     if isColorInRange(square_range, colorB):
         return 0
 
-    diff_list = []
-
     diff_piece1 = colorDiffFromRange(FIRST_PIECE_RGB, colorF)
-    diff_list.append(diff_piece1)
-
     diff_piece2 = colorDiffFromRange(SECOND_PIECE_RGB, colorF)
-    diff_list.append(diff_piece2)
 
-    #diff_back = colorDiffFromRange(square_range,dom_color)
-    #diff_list.append(diff_back)
-    diff_back = 10000
-
-    min_diff = min(diff_list)
-
-    if min_diff == diff_piece1:
+    if diff_piece1 < diff_piece2:
         return 1
-    if min_diff == diff_piece2:
+    if diff_piece2 < diff_piece1:
         return 2
-    if min_diff == diff_back:
-        diffthresh = 0.5
-        if abs(diff_piece2 - diff_piece1)/max(diff_list) < diffthresh:
-            return square_color+1
-        else:
-            return 0
 
-    print "None", dom_color
-    print "min_diff", min_diff
-    print "diff_piece1", diff_piece1, "diff_piece2", diff_piece2
     return None
 
-
-# square color, 0 for white, 1 for brown
+# position status recognition step 2
+# get half dominant color of a square and the square color = 0 for white, 1 for brown and
+# the square colors range and whether this cell is recognized as empty by canny and
+# return status : 0 for empty, 1 for black piece, 2 for white piece and
+# None for unrecognized
 def getPositionStatusByHalfDom(tl, br, tr, bl, game_img, square_color, square_range,empty):
     new_dom_list = getHalfDominants(tl, br, tr, bl, game_img)
     print "none half dom" , new_dom_list #
@@ -590,7 +475,7 @@ def getPositionStatusByHalfDom(tl, br, tr, bl, game_img, square_color, square_ra
         return 2
     return 0
 
-#
+# return 0 for white piece, 1 for black piece and none for empty cell
 def getResultForSquare(corners, k, edges_img, game_img, square_color, i, j):
     empty = 0
     tl = corners[k][0]
@@ -607,6 +492,8 @@ def getResultForSquare(corners, k, edges_img, game_img, square_color, i, j):
         return None
     else:
         return 2-result
+
+# return a matrix of cells' statuses
 def getResultsForOneFrame(game_img, edges_img, corners, square_color):
     result_matrix = np.empty([8, 8])
     k = 0
@@ -620,13 +507,19 @@ def getResultsForOneFrame(game_img, edges_img, corners, square_color):
         k += 1
 
     return result_matrix
+
+# compare between two rgb colors by its sums
 def cmpColor(first,second):
     return cmp(sum(first),sum(second))
+
+# return 0 if one range contains the other, 1 if first range > second and -1 otherwise
 def cmpRanges(first,second):
-    ret = cmpColor(first[0],second[1])+cmpColor(first[1],second[1])
+    ret = cmpColor(first[0],second[0])+cmpColor(first[1],second[1])
     if ret == 0:
         return 0
     return 1 if ret > 0 else -1
+
+# return the color of the first square in the board, 1 for brown cell and 0 for white one
 def firstSquareColor():
     firstrange = CELL_RANGE_MATRIX[0][0]
     contenderindices = [2*i+(1 if i%8 < 4 else 0) for i in xrange(32)]

@@ -1,3 +1,4 @@
+#testing file for the validator
 from moveinterpreter import board,moveInterpreter
 from validator import validator
 from gameRecorder import openRecorder

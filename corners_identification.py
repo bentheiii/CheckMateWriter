@@ -24,11 +24,11 @@ def undistort(img,orig):
     #x,y,w,h = roi
     #ret = ret[y:y+h, x:x+w]
     return ret
-# 
+#extrapolates point via parabolic extrapolation
 def extrapolatepoint(corners, ind0, ind1, ind2):
     return 3*corners[ind0] - 3*corners[ind1] + corners[ind2]
 
-#
+#extrapolates all corners from inner corners
 def extrapolateOuterCorners(innercorners,length = 7):
     innercorners = innercorners
     ret = []
@@ -51,7 +51,7 @@ def extrapolateOuterCorners(innercorners,length = 7):
     ret.append(sixfourcorner)
     return ret
 
-#
+#draws corners into image, used for debugging
 def drawCorners(orig, corners):
     i = 0
     textscale = 5
@@ -63,7 +63,7 @@ def drawCorners(orig, corners):
         cv2.putText(orig,str(i),corner,cv2.FONT_HERSHEY_PLAIN,1,(0,0,255))
         i+=1
     return orig
-
+#draws corners into image, used for debugging
 def drawCorners1(orig, corners):
     i = 0
     textscale = 5
@@ -75,12 +75,12 @@ def drawCorners1(orig, corners):
         i+=1
     return orig
 
-#
+#shows image and waits for input, used for debugging
 def show(img):
     cv2.imshow("result",img)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
-#
+#returns rectangles from corner list
 def getRectangles(corners, length=9):
     for row in xrange(length-1):
         for col in xrange(length-1):

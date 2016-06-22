@@ -1,7 +1,7 @@
 from encoding import encodeState, ENCODINGSIZE
 import os
 import platform
-
+#wrapper for open file
 class osStream:
     def __init__(self,filepath):
         if platform.system()=='Windows':
@@ -16,13 +16,13 @@ class osStream:
         self.file.seek(offset,whence)
     def truncate(self):
         self.file.truncate()
-
+#opens recorder at file (ensures that path exists
 def openRecorder(filepath,whiteToken):
     dirpath = os.path.dirname(filepath)
     if not os.path.exists(dirpath):
         os.makedirs(dirpath)
     return gameRecorder(osStream(filepath),whiteToken)
-
+#records game onto file, supports rollback
 class gameRecorder:
     def __init__(self,stream,whiteToken):
         self._file = stream

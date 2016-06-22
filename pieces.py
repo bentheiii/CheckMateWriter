@@ -1,21 +1,25 @@
 from boardstate import allClear
-
+#returns the differnce btween two points
 def locationdiff(origin,target):
     return target[0]-origin[0],target[1]-origin[1]
+#returns the sign of a number
 def sign(num):
     if num > 0:
         return 1
     if num < 0:
         return -1
     return 0
+#brings one coordinate closer to another with 1 step
 def bringCloserTo(origin, target):
     diff = locationdiff(origin,target)
     return origin[0]+sign(diff[0]),origin[1]+sign(diff[1])
+#returns the list of coordinates between two coordinates
 def getPath(origin, target):
     origin = bringCloserTo(origin,target)
     while origin!=target:
         yield origin
         origin = bringCloserTo(origin,target)
+#represents a single piece
 class piece:
     def __init__(self,token, encodingslot, encodingFlag = 0):
         self.token = token
@@ -23,26 +27,33 @@ class piece:
         self.firstMoveTime = None
         self.encodingslot = encodingslot
         self.encodingFlag = encodingFlag
+    #a letter representing the piece
     @staticmethod
     def sign():
         return '?'
+    #whether the piece can move to specified location, not to be overidden
     def validMove(self, targetLocation, board):
         if not board.occupant(targetLocation) is None:
             return False
         return self.canMove(targetLocation, board)
+    #whether the piece can move to specified location, to be overidden
     def canMove(self,targetLocation,board):
         raise NotImplementedError
+    #whether the piece can eat at specified location, not to be overidden
     def validEat(self,targetLocation,targetPiece,board):
         if targetPiece.token == self.token:
             return False
         return self.canEat(targetLocation,targetPiece,board)
+    #whether the piece can eat at specified location, to be overidden
     def canEat(self,targetLocation,targetPiece,board):
         if targetPiece.location != targetLocation:
             return False
         return self.canMove(targetLocation,board)
+    #treat mechanics as though time has passed
     def advanceTime(self):
         if not self.firstMoveTime is None:
             self.firstMoveTime+=1
+    #move to new location
     def move(self,newLocation):
         self.location = newLocation
         if self.firstMoveTime is None:

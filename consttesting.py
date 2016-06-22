@@ -1,17 +1,15 @@
-import numpy as np
+#testing program for live camera
+
 import cv2
 import argparse
 import sys
 import corners_identification as ci
-import points_and_colors_manipulations as pcm
 import viewercore
-#import rgb
 
 parser = argparse.ArgumentParser(description = "identify pieces on Checkmate board")
 parser.add_argument("-cb", "--clean_board", action="store", default="cb.jpg", help="clean Checkmate board")
 parser.add_argument("-ib", "--initial_board", action="store", default="ib.jpg", help="initial Checkmate board")
 parser.add_argument("-gb", "--game_board", action="store", default="gb.jpg", help="one frame of Checkmate game board")
-#args = parser.parse_args()
 class expando:
     pass
 args = expando()

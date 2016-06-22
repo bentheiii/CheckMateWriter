@@ -1,6 +1,7 @@
 from itertools import *
 import numpy
 import copy
+#represents a change on the board
 class boardChange:
     def __init__(self, kind, coordinates):
         self.coordinates = coordinates
@@ -8,7 +9,7 @@ class boardChange:
     def __repr__(self):
         return "{} at {}".format(self.kind,self.coordinates)
 
-
+#returns iterable of changes 1st tuple is tokens, second is ccordinates
 def Difference(this, other):
     if this is None:
         this = board(other.Size())
@@ -19,7 +20,7 @@ def Difference(this, other):
             if this[i, j] != other[i, j]:
                 yield (this[i, j], other[i, j]), (i, j)
 
-
+#represents a series of differences
 def Changes(this, other):
     appears = []
     disappears = []
@@ -29,7 +30,7 @@ def Changes(this, other):
         if not kinds[0] is None:
             disappears.append(boardChange(kinds[0], coordinate))
     return appears, disappears
-
+#represents a board of tokens
 class board:
     def __init__(self, size):
         self.data = [[None for x in range(size)] for x in range(size)]
@@ -41,6 +42,7 @@ class board:
     def __setitem__(self, pos , value):
         row, col = pos
         self.data[row][col] = value
+    #construct board from numpy array provided by the viewercore
     @staticmethod
     def fromnp(np):
         ret = board(len(np))
@@ -124,23 +126,27 @@ class moveTypes:
     other = _otherMoveType()
     moveTypes = [no, regular, eat, irregularEat, multiMove, disappear, appear, other]
 
+#represents a move
 class move:
     def __init__(self, appears, disappears):
         self.type = ifilter(lambda x:x.isValid(appears,disappears),moveTypes.moveTypes).next()
         self.appears = appears
         self.disappears = disappears
-
+#interprits moves
 class moveInterpreter:
     def __init__(self):
         self.prevs = []
         self.prev = None
+    #returns the move occured
     def nextmove(self, currentBoard):
         prev = self.prev
         changes = Changes(prev, currentBoard)
         return move(changes[0],changes[1])
+    #commits the new board
     def commit(self, currentBoard):
         self.prevs.append(copy.deepcopy(self.prev))
         self.prev = currentBoard
+    #rollbacks the board
     def rollBack(self):
         self.prev = self.prevs[-1]
         self.prevs = self.prevs[:-1]

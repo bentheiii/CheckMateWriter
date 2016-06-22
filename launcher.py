@@ -1,3 +1,5 @@
+#launches the main app
+
 from topApp import topApp
 from logicCore import LogicCore
 from viewercore import viewerCore

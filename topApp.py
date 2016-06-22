@@ -1,11 +1,11 @@
+#main GUI window
+
 import Tkinter
 import Image
 import cv2
 import ImageTk
 from moveinterpreter import board
 from captureDiag import captureDiag
-
-#todo: hookup, rollback
 
 class topApp(Tkinter.Tk):
     def __init__(self, parent, logic, viewer, camfps = 30, statefps = 4, cabfolder = None):
@@ -70,15 +70,17 @@ class topApp(Tkinter.Tk):
 
         self.loopCam()
         self.loopState()
+    #rollback button click
     def rollback(self):
         if self.stage >= 3:
             self.logic.rollBack()
             self.boardSign = self.logic.getState()
-
+    #open capture image dialog
     def frameDiag(self,prompt,title):
         d = captureDiag(self,self.viewer,prompt,title)
         self.wait_window(d)
         return d.value
+    #calibrate button click
     def calibrate(self):
         if self.stage < 1:
             return
@@ -104,10 +106,12 @@ class topApp(Tkinter.Tk):
             self.stage = max(self.stage,2)
         else:
             self.setMessage('Calibration failed:\n{}'.format(message))
+    #set the message on the bottom right corner
     def setMessage(self,text,displayGameName=False):
         if displayGameName:
             text = self.logic.getGameName()+'\n\n\n'+text
         self.message.set(text)
+    #seek to next available camera
     def seekcam(self):
         while True:
             self.camind+=1
@@ -119,17 +123,21 @@ class topApp(Tkinter.Tk):
                 raise Exception('could not connect to cam 0')
             else:
                 self.camind = -1
+    #new game button clicked
     def newGame(self):
         if self.stage < 2:
             return
         self.logic.startNewGame()
         self.setMessage('New game started!',True)
         self.stage = 3
+    #switch camera button clicked
     def switchCam(self):
         self.seekcam()
+    #loops the updatestate
     def loopState(self):
         self.stateUpdate()
         self.after(int(1000/ self.statefps), self.loopState)
+    #converts an nparray to printable string
     @staticmethod
     def strNpBoard(np,w=0.0,b=1.0):
         ret = []
@@ -145,6 +153,7 @@ class topApp(Tkinter.Tk):
                 ret.append(toplace)
             ret.append('\n')
         return "".join(ret)
+    #gets board from viewer and mutates the logic
     def stateUpdate(self):
         if self.stage < 3:
             return
@@ -159,9 +168,11 @@ class topApp(Tkinter.Tk):
             self.boardSign = self.logic.getState()
         nextplayer = self.logic.nextPlayer()
         self.boardState.set(nextplayer+" plays next\n"+self.boardSign+"========\n"+topApp.strNpBoard(npboard))
+    #loops the camupdate
     def loopCam(self):
         self.camUpdate()
         self.after(1000 / self.camfps, self.loopCam)
+    #updates the camera
     def camUpdate(self):
         frame = self.viewer.getFrame()
         frame = cv2.resize(frame,(400,300))

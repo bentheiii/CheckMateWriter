@@ -1,3 +1,5 @@
+#testing file
+#tests the move interperter
 from moveinterpreter import board,moveInterpreter,moveTypes
 from itertools import *
 boardsize = 5

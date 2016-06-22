@@ -3,20 +3,19 @@ from boardstate import boardState, coortransform, allClear
 from moveinterpreter import moveTypes
 import copy
 
+#ensured item1 is entirely contained in item2
 def containerequals(item1,item2):
     for i in item1:
         if not i in item2:
             return False
     return True
-
+#stores the game state, validates the moves, enables rollback
 class validator:
     def __init__(self,whitetoken,blacktoken,size=8):
         self.boards = []
-        #dictates which token should not play next, None means anyone can play next (in case of assignment)
-
         self.board = boardState(whitetoken,blacktoken,size)
 
-
+    #special validator for appear
     def ValidateAppear(self,move):
         whites = filter(lambda x:x.kind==self.board.tokenW,move.appears)
         #whites = []
@@ -93,6 +92,7 @@ class validator:
                 return True,3
             else:
                 return True,1
+    #special validator for castling
     def ValidateCastling(self,move):
         if len(move.appears) != 2:
             return False,None
@@ -119,6 +119,7 @@ class validator:
         if not containerequals(map(lambda x:coortransform(x.coordinates,self.board.transform,self.board.size),move.appears),newlocs):
             return False, None
         return True,(k,r,newlocs[0],newlocs[1])
+    #special commit for appear
     def commitAppear(self,transform):
         self.board.transform = transform
 
@@ -145,6 +146,7 @@ class validator:
             self.board.insertPiece(pawn(self.board.tokenB,-1,i+16),(6,i))
 
         self.advanceTurn(None)
+    #special commit for caslting
     def commitCastling(self,valValue):
         k,r,kloc,rloc = valValue
         self.board.assign(None,k.location)
@@ -154,10 +156,12 @@ class validator:
         r.move(rloc)
         self.board.assign(r,r.location)
         self.advanceTurn(k.token)
+    #returns whether the current token can play now
     def hasTurn(self,playToken):
         if self.board.prevTurn is None:
             return True
         return self.board.prevTurn != playToken
+    #returns the token of the next player
     def nextPlay(self):
         if self.board.prevTurn is None:
             return None
@@ -165,6 +169,7 @@ class validator:
             return self.board.tokenW
         else:
             return self.board.tokenB
+    #returns whether a move is valid, as well as a validation value for commiting
     def isValid(self,move):
         if move.type == moveTypes.appear:
             return self.ValidateAppear(move)
@@ -198,8 +203,11 @@ class validator:
         if move.type == moveTypes.multiMove:
             return self.ValidateCastling(move)
         return False, None
+    #advances the turn
     def advanceTurn(self,prevToken):
         self.board.prevTurn = prevToken
+    #commits the move, requires validation value from validate function and promotion value (Q is queen, anything else is Knight)
+    #assumes the move is legal
     def Commit(self,move,validationValue,promotionvalue = 'Q'):
         self.boards.append(copy.deepcopy(self.board))
         if move.type == moveTypes.appear:
@@ -225,9 +233,11 @@ class validator:
         elif move.type == moveTypes.multiMove:
             self.commitCastling(validationValue)
         self.board.advance()
+    #rollback
     def rollBack(self):
         self.board  =self.boards[-1]
         self.boards = self.boards[:-1]
+    #promotes a piece to either queen or knight
     def promote(self, propawn, promoteSign):
         proclass = queen if promoteSign=='Q' else knight
         self.board.pieces.remove(propawn)

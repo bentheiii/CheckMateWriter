@@ -1,3 +1,5 @@
+#tests recorder's ability for rollback
+
 import gameRecorder
 
 rec = gameRecorder.openRecorder("testing/recordtest.txt",1)
